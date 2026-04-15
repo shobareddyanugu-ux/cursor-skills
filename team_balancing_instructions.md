@@ -4,7 +4,7 @@
 Distribute CANs across teams into balanced groups with roughly equal:
 - CAN count
 - Renewal goal
-- Hosting goal
+- Hosting goal (in dollars)
 - At-risk count
 - Expected renewal timing
 
@@ -19,7 +19,7 @@ Distribute CANs across teams into balanced groups with roughly equal:
 | 3 | **At-Risk Balance** | At-risk CANs (cy_at_risk = 1) are evenly distributed across groups first |
 | 4 | **Renewal Timing Balance** | CANs are distributed to balance expected renewal dates throughout the year |
 | 5 | **Renewal Goal Balance** | Each group should have roughly equal total renewal dollar goals |
-| 6 | **Hosting Goal Balance** | Each group should have some hosting goal where possible |
+| 6 | **Hosting Goal Balance** | Hosting dollars are balanced across groups (not seats) |
 | 7 | **CAN Count Balance** | Each group should have roughly equal number of CANs |
 
 ---
@@ -133,9 +133,27 @@ Distribute CANs across teams into balanced groups with roughly equal:
 
 | Data | Table |
 |------|-------|
-| CAN, Team, Hosting Goals | `PCG_WS_7216.MAS_MANAGED_ACCOUNT_HOSTING_GOALS_FY26` |
+| CAN, Team | `PCG_WS_7216.MAS_MANAGED_ACCOUNT_HOSTING_GOALS_FY26` |
+| Hosting Goal (Dollars) | `pcg_ws.ty26_managed_cans_retention_hosting_goals` (sum of monthly rev columns) |
 | Renewal Goal, Renewal Date, At-Risk | `pcg_ws.ty26_managed_retention_goals_final` |
 | Host CAN Mapping | `pcg_dm.tam_tac_list` (tax_year = '2025') |
+
+### Hosting Dollars Query
+```sql
+SELECT can, SUM(
+    rev_business_m1 + rev_business_m2 + rev_business_m3 + rev_business_m4 + 
+    rev_business_m5 + rev_business_m6 + rev_business_m7 + rev_business_m8 + 
+    rev_business_m9 + rev_business_m10 + rev_business_m11 + rev_business_m12 +
+    rev_advanced_m1 + rev_advanced_m2 + rev_advanced_m3 + rev_advanced_m4 + 
+    rev_advanced_m5 + rev_advanced_m6 + rev_advanced_m7 + rev_advanced_m8 + 
+    rev_advanced_m9 + rev_advanced_m10 + rev_advanced_m11 + rev_advanced_m12 +
+    rev_solo_m1 + rev_solo_m2 + rev_solo_m3 + rev_solo_m4 + 
+    rev_solo_m5 + rev_solo_m6 + rev_solo_m7 + rev_solo_m8 + 
+    rev_solo_m9 + rev_solo_m10 + rev_solo_m11 + rev_solo_m12
+) AS hosting_dollars
+FROM pcg_ws.ty26_managed_cans_retention_hosting_goals
+GROUP BY can
+```
 
 ---
 
@@ -143,11 +161,12 @@ Distribute CANs across teams into balanced groups with roughly equal:
 
 1. **Apply Mandatory Assignments** - For Team Andrea, assign specific CANs to their designated groups first
 2. **Group CANs by host_can** - All CANs with the same host_can are treated as a unit
-3. **Calculate aggregate metrics** for each host_can group (sum of renewal_goal, hosting_goal, at_risk count)
+3. **Calculate aggregate metrics** for each host_can group (sum of renewal_goal, hosting_dollars, at_risk count)
 4. **Prioritize at-risk groups first** - Host_can groups containing at-risk CANs are assigned first
 5. **Stratify by renewal month** - For timing balance
 6. **Use serpentine ordering** - By combined goal value within each stratum
 7. **Round-robin assignment** - Assign host_can groups to team groups
+8. **Post-processing** - Swap host_can groups between imbalanced groups to improve hosting dollar distribution
 
 ---
 
@@ -156,7 +175,7 @@ Distribute CANs across teams into balanced groups with roughly equal:
 | File | Description |
 |------|-------------|
 | `/Users/sanugu/all_teams_balanced_groups.sql` | SQL query for distribution |
-| `/Users/sanugu/all_teams_balanced_groups_v3.csv` | Full CAN-level CSV (38,643 rows) |
+| `/Users/sanugu/all_teams_balanced_groups_v5.csv` | Full CAN-level CSV (38,643 rows) |
 | `PCG_WS_7216.all_teams_balanced_groups` | Databricks table |
 
 ---
@@ -197,15 +216,59 @@ Run team balancing but move CAN 12345 from Cameron to Emily
 Run team balancing and add these new CANs to Cameron's group: 11111, 22222, 33333
 ```
 
+**Check and improve balance:**
+```
+Check if there is room for balancing hosting dollars between groups
+```
+
 ### Outputs You Will Receive
 
 | Output | Description |
 |--------|-------------|
-| Summary table | Group-level metrics (CAN count, renewal goal, hosting goal, at-risk) |
-| CSV file | Full CAN-level distribution at `/Users/sanugu/all_teams_balanced_groups_v3.csv` |
+| Summary table | Group-level metrics (CAN count, renewal goal, hosting dollars, at-risk) |
+| CSV file | Full CAN-level distribution at `/Users/sanugu/all_teams_balanced_groups_v5.csv` |
 | Databricks table | `PCG_WS_7216.all_teams_balanced_groups` |
 
 ### Pre-requisites
 
 1. Databricks authentication (will prompt if needed)
 2. Access to source tables (hosting goals, renewal goals, tam_tac_list)
+
+---
+
+## Latest Distribution Summary (April 2026)
+
+### Team Andrea
+| Group | Name | CANs | Renewal Goal | Hosting $ | At-Risk |
+|-------|------|------|--------------|-----------|---------|
+| 1 | Cameron | 207 | $3.55M | $9,592 | 14 |
+| 2 | Emily | 210 | $3.89M | $0 | 16 |
+| 3 | Ben | 196 | $3.35M | $8,222 | 10 |
+| 4 | Justin | 215 | $3.81M | $14,388 | 11 |
+| 5 | Travis | 195 | $3.73M | $9,592 | 10 |
+| 6 | Aaron | 210 | $3.73M | $7,537 | 8 |
+| 7 | Joe | 203 | $3.52M | $4,796 | 12 |
+
+### Team Jason (9 groups, ~1,553 CANs each)
+- Renewal Goal: $6.87M - $6.93M per group
+- Hosting $: $51K - $71K per group
+- At-Risk: 55-56 per group
+
+### Team Katelyn (9 groups, ~1,551 CANs each)
+- Renewal Goal: $7.80M - $7.83M per group
+- Hosting $: $79K - $112K per group
+- At-Risk: 51-52 per group
+
+### Team Tracy (10 groups, ~924 CANs each)
+- Renewal Goal: $14.7M - $15.5M per group
+- Hosting $: $118K - $155K per group
+- At-Risk: 42-44 per group
+
+### Grand Total
+| Team | CANs | Renewal Goal | Hosting $ | At-Risk |
+|------|------|--------------|-----------|---------|
+| Team Andrea | 1,436 | $25.6M | $54K | 81 |
+| Team Jason | 13,978 | $62.1M | $539K | 498 |
+| Team Katelyn | 13,965 | $70.3M | $885K | 462 |
+| Team Tracy | 9,264 | $149.6M | $1.35M | 430 |
+| **Total** | **38,643** | **$307.7M** | **$2.83M** | **1,471** |
