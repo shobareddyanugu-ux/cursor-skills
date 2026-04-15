@@ -161,8 +161,51 @@ Distribute CANs across teams into balanced groups with roughly equal:
 
 ---
 
-## How to Re-run
+## How to Use This Skill
 
-1. Share this file with the assistant
-2. Ask: "Run the team balancing exercise as described in team_balancing_instructions.md"
-3. Update group counts or mandatory assignments if needed
+### Quick Start
+Say: **"Run the team balancing exercise as described in team_balancing_instructions.md"**
+
+### Required Inputs
+
+| Input | Required? | Default | When to Provide |
+|-------|-----------|---------|-----------------|
+| Team names | No | Tracy, Andrea, Jason, Katelyn | Only if teams change |
+| Number of groups per team | No | Tracy:10, Andrea:7, Jason:9, Katelyn:9 | Only if group counts change |
+| Team Andrea CAN assignments | No | Uses stored list above | Only if assignments change |
+| Tax year for host_can mapping | No | 2025 | Only if running for different year |
+
+### Example Prompts
+
+**Run with defaults:**
+```
+Run the team balancing exercise as described in team_balancing_instructions.md
+```
+
+**Change group counts:**
+```
+Run team balancing with Team Tracy split into 12 groups instead of 10
+```
+
+**Update Team Andrea assignments:**
+```
+Run team balancing but move CAN 12345 from Cameron to Emily
+```
+
+**Add new CANs to assignments:**
+```
+Run team balancing and add these new CANs to Cameron's group: 11111, 22222, 33333
+```
+
+### Outputs You Will Receive
+
+| Output | Description |
+|--------|-------------|
+| Summary table | Group-level metrics (CAN count, renewal goal, hosting goal, at-risk) |
+| CSV file | Full CAN-level distribution at `/Users/sanugu/all_teams_balanced_groups_v3.csv` |
+| Databricks table | `PCG_WS_7216.all_teams_balanced_groups` |
+
+### Pre-requisites
+
+1. Databricks authentication (will prompt if needed)
+2. Access to source tables (hosting goals, renewal goals, tam_tac_list)
