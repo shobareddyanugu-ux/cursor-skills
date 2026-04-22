@@ -16,10 +16,10 @@ Distribute CANs across teams into balanced groups with roughly equal:
 |---|------|-------------|
 | 1 | **Host CAN Grouping** | All CANs with the same host_can must be in the same group |
 | 2 | **Mandatory Assignments (Team Andrea only)** | Specific CANs are pre-assigned to named groups (Cameron, Emily, Ben, Justin, Travis, Aaron, Joe) |
-| 3 | **At-Risk Balance** | At-risk CANs (cy_at_risk = 1) are evenly distributed across groups first |
-| 4 | **Renewal Timing Balance** | CANs are distributed to balance expected renewal dates throughout the year |
-| 5 | **Renewal Goal Balance** | Each group should have roughly equal total renewal dollar goals |
-| 6 | **Hosting Goal Balance** | Hosting dollars are balanced across groups (not seats) |
+| 3 | **Hosting Goal Balance (PRIMARY)** | Hosting dollars must be as evenly distributed as possible across groups within a team. Iterate post-processing swaps until the gap between the highest and lowest group hosting goal is minimal (target: within ~5% of the team average, or as tight as host_can constraints allow) |
+| 4 | **At-Risk Balance** | At-risk CANs (cy_at_risk = 1) are evenly distributed across groups |
+| 5 | **Renewal Timing Balance** | CANs are distributed to balance expected renewal dates throughout the year |
+| 6 | **Renewal Goal Balance** | Each group should have roughly equal total renewal dollar goals |
 | 7 | **CAN Count Balance** | Each group should have roughly equal number of CANs |
 
 ---
@@ -30,10 +30,13 @@ Distribute CANs across teams into balanced groups with roughly equal:
 |----------|------|
 | 1 | Mandatory Assignments (Team Andrea) |
 | 2 | Host CAN Grouping |
-| 3 | At-Risk Balance |
-| 4 | Renewal Timing Balance |
-| 5 | Renewal/Hosting Goal Balance |
-| 6 | CAN Count Balance |
+| 3 | **Hosting Goal Balance** (iterate until minimal gap between groups) |
+| 4 | At-Risk Balance |
+| 5 | Renewal Timing Balance |
+| 6 | Renewal Goal Balance |
+| 7 | CAN Count Balance |
+
+> **Note:** Hosting Goal Balance is the top balancing priority (after mandatory assignments and host_can integrity). All other balancing rules act as tie-breakers — they must not be satisfied at the cost of widening the hosting-dollar gap between groups within the same team.
 
 ---
 
@@ -172,11 +175,17 @@ GROUP BY can
 1. **Apply Mandatory Assignments** - For Team Andrea, assign specific CANs to their designated groups first
 2. **Group CANs by host_can** - All CANs with the same host_can are treated as a unit
 3. **Calculate aggregate metrics** for each host_can group (sum of renewal_goal, hosting_dollars, at_risk count)
-4. **Prioritize at-risk groups first** - Host_can groups containing at-risk CANs are assigned first
-5. **Stratify by renewal month** - For timing balance
-6. **Use serpentine ordering** - By combined goal value within each stratum
-7. **Round-robin assignment** - Assign host_can groups to team groups
-8. **Post-processing** - Swap host_can groups between imbalanced groups to improve hosting dollar distribution
+4. **Sort host_can groups by hosting dollars (descending)** - Largest hosting-goal units are placed first so they can be distributed most evenly
+5. **Serpentine / round-robin assignment by hosting dollars** - Assign host_can groups to team groups in serpentine order so that cumulative hosting dollars stay balanced from the start
+6. **Secondary balancing within hosting-dollar constraint** - Within host_can groups of similar hosting-dollar size, further order by at-risk count, renewal month, and renewal goal
+7. **Iterative hosting-dollar rebalancing (MUST loop until converged)**:
+   - Compute hosting-dollar total per group within the team
+   - Identify the group with the highest (`G_max`) and lowest (`G_min`) hosting totals
+   - Find a swap of host_can units (or a one-way move, if size differs) between `G_max` and `G_min` that reduces `G_max - G_min`
+   - Apply the swap and repeat
+   - Stop when no swap can further reduce the gap, or the gap is within the target tolerance (≤ ~5% of the team's average group hosting goal)
+   - This loop takes precedence over renewal goal, at-risk, and CAN-count balance — only use those as tie-breakers between equally good hosting-dollar swaps
+8. **Final validation** - Report min/max/spread of hosting dollars per group per team and confirm the gap is minimal before writing outputs
 
 ---
 
