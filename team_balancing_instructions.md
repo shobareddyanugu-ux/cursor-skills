@@ -15,7 +15,7 @@ Distribute CANs across teams into balanced groups with roughly equal:
 | # | Rule | Description |
 |---|------|-------------|
 | 1 | **Host CAN Grouping** | All CANs with the same host_can must be in the same group |
-| 2 | **Mandatory Assignments (Team Andrea only)** | Specific CANs are pre-assigned to named groups (Cameron, Emily, Ben, Justin, Travis, Aaron, Joe) |
+| 2 | **Mandatory Assignments (Team Andrea only)** | Specific CANs are pre-assigned to named groups (Cameron, Emily, Ben, Justin, Travis, Aaron, Joe). **Source of truth: the `final_4_21_2026` tab of `~/Downloads/Andrea top 50 cans.xlsx` (columns: `CAN`, `group`).** Always re-read that sheet at run time and use it to populate the mandatory assignments for Team Andrea. |
 | 3 | **Hosting Goal Balance (PRIMARY)** | Hosting dollars must be as evenly distributed as possible across groups within a team. Iterate post-processing swaps until the gap between the highest and lowest group hosting goal is minimal (target: within ~5% of the team average, or as tight as host_can constraints allow) |
 | 4 | **At-Risk Balance** | At-risk CANs (cy_at_risk = 1) are evenly distributed across groups |
 | 5 | **Renewal Timing Balance** | CANs are distributed to balance expected renewal dates throughout the year |
@@ -52,6 +52,24 @@ Distribute CANs across teams into balanced groups with roughly equal:
 ---
 
 ## Team Andrea Mandatory CAN Assignments (Rule 2)
+
+> **Source of truth:** `~/Downloads/Andrea top 50 cans.xlsx` → tab **`final_4_21_2026`**
+> - Column `CAN` → CAN number
+> - Column `group` → one of: Cameron, Emily, Ben, Justin, Travis, Aaron, Joe
+>
+> Always re-read this sheet at run time; the lists below are a cached snapshot and must be refreshed from the Excel whenever it changes.
+>
+> Extraction snippet:
+> ```python
+> import openpyxl
+> wb = openpyxl.load_workbook('/Users/sanugu/Downloads/Andrea top 50 cans.xlsx', data_only=True)
+> ws = wb['final_4_21_2026']
+> assignments = {}
+> for can, group, *_ in ws.iter_rows(min_row=2, values_only=True):
+>     if can and group:
+>         assignments.setdefault(str(group).strip(), []).append(int(can))
+> ```
+
 
 ### Cameron (Group 1) - 65 CANs
 ```
@@ -150,6 +168,7 @@ Distribute CANs across teams into balanced groups with roughly equal:
 | Hosting Goal (Dollars) | `pcg_ws.ty26_managed_cans_retention_hosting_goals` (sum of monthly rev columns) |
 | Renewal Goal, Renewal Date, At-Risk | `pcg_ws.ty26_managed_retention_goals_final` |
 | Host CAN Mapping | `pcg_dm.tam_tac_list` (tax_year = '2025') |
+| Team Andrea Mandatory CAN Assignments | `~/Downloads/Andrea top 50 cans.xlsx` → tab **`final_4_21_2026`** (columns `CAN`, `group`) |
 
 ### Hosting Dollars Query
 ```sql
@@ -210,7 +229,7 @@ Say: **"Run the team balancing exercise as described in team_balancing_instructi
 |-------|-----------|---------|-----------------|
 | Team names | No | Tracy, Andrea, Jason, Katelyn | Only if teams change |
 | Number of groups per team | No | Tracy:10, Andrea:7, Jason:9, Katelyn:9 | Only if group counts change |
-| Team Andrea CAN assignments | No | Uses stored list above | Only if assignments change |
+| Team Andrea CAN assignments | No | Auto-loaded from `~/Downloads/Andrea top 50 cans.xlsx` tab `final_4_21_2026` (columns `CAN`, `group`) | Only if pointing to a different file or tab |
 | Tax year for host_can mapping | No | 2025 | Only if running for different year |
 
 ### Example Prompts
